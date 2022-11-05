@@ -1,24 +1,29 @@
 import cv2 as cv
 import numpy as np
-import pyautogui
+import subprocess
+import PIL.Image as Image
+import io
 
-screenWidth, screenHeight = pyautogui.size()
-# Order is important. Room gear dependent on expand. Errors full priority
-singles = "ad_x reward error daily_ok wide_ok expand room_gear".split()
-stones = ("clover four_clover hadouken donut "
-          "bronze silver gold "
-          "crescent half_moon full_moon "
-          "snowball ice_cube ").split()
+singles = ["error", "ok"]
+stones = ["clover", "four_clover", "hadouken", "donut",
+          "bronze", "silver", "gold",
+          "crescent", "half_moon", "full_moon",
+          "snowball", "ice_cube", "icicle", "fireball", "butterfly", "angel_wings", "dragon_wings", "3_ball"]
 
+def screenshot(top=None, height=None):
+    raw = subprocess.run(["adb", "shell", "screencap", "-p "],
+                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True).stdout.replace(b'\r\n', b'\n')
+    stream = io.BytesIO(raw)
+    rgba_image = Image.open(stream)
+    size = rgba_image.size
 
-def click(x, y, duration=0.3):
-    pyautogui.moveTo(x, y, duration)
-    pyautogui.dragTo(x + 1, y + 1)
-
-
-def screenshot(x0=0, y0=0, x1=screenWidth / 2, y1=screenHeight):
-    _img = pyautogui.screenshot(region=(x0, y0, x1, y1))
-    return cv.cvtColor(np.array(_img), cv.COLOR_RGB2BGR)
+    if top is None:
+        top = 0
+    if height is None:
+        height = size[1]
+        
+    rgba_image = rgba_image.crop((0, top, size[0], size[1]))
+    return [cv.cvtColor(np.array(rgba_image), cv.COLOR_RGB2BGR), top]
 
 
 def info(t):
@@ -29,17 +34,6 @@ def info(t):
 def dim(t):
     img = cv.imread('stone_templates/{}.png'.format(t))
     return img.shape[1], img.shape[0]
-
-
-def single_templates():
-    return [info(t) for t in singles]
-
-
-def templates(match_crescent=True):
-    template_names = singles + stones
-    if not match_crescent:
-        template_names.remove('crescent')
-    return [info(t) for t in template_names]
 
 
 def pouch():

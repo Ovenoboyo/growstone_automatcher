@@ -28,9 +28,9 @@ def match_test(_template_name, _template, _source, threshold=_threshold):
     return match(_template_name, _template, cv.imread('sources/{}.png'.format(_source)), threshold)
 
 
-def match_name(name, threshold=0.8):
+def match_name(name, source, threshold=0.8):
     image = img.info(name)
-    return match(image[0], image[1], img.screenshot(), threshold)
+    return match(image[0], image[1], source, threshold)
 
 
 # Returns array of tuples, of matching pixel coordinates
@@ -42,7 +42,8 @@ def match(template_name, template, source, threshold=0.8):
     half_height = math.floor(template.shape[0]/2)
 
     # This allows you to better evaluate the supported matchers of OpenCV
-    # methods = ['cv.TM_SQDIFF_NORMED', 'cv.TM_CCOEFF_NORMED', 'cv.TM_CCORR', 'cv.TM_CCORR_NORMED', 'cv.TM_CCOEFF']
+    # methods = ['cv.TM_SQDIFF_NORMED', 'cv.TM_CCOEFF_NORMED',
+    #            'cv.TM_CCORR', 'cv.TM_CCORR_NORMED', 'cv.TM_CCOEFF']
     methods = ['cv.TM_CCOEFF_NORMED']
 
     for method in methods:
@@ -64,13 +65,16 @@ def match(template_name, template, source, threshold=0.8):
             baseline = confidence.pop(0)
             confidence = list(
                 filter(
-                    lambda cpoint: (abs(baseline[0] - cpoint[0]) > 5 or abs(baseline[1] - cpoint[1]) > 5),
+                    lambda cpoint: (
+                        abs(baseline[0] - cpoint[0]) > 5 or abs(baseline[1] - cpoint[1]) > 5),
                     confidence))
-            baseline = ((baseline[0] + half_width), (baseline[1] + half_height))
+            baseline = ((baseline[0] + half_width),
+                        (baseline[1] + half_height))
             filtered_points.append(baseline)
 
         if debug:
-            print("{} Threshold: {} Sorted: {}".format(
+            print("{} {} Threshold: {} Sorted: {}".format(
+                match_array,
                 template_name,
                 np.shape(match_array)[1], len(filtered_points)))
 

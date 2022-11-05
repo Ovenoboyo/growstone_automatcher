@@ -1,92 +1,86 @@
 from time import sleep
-import time
-import pyautogui
 import eyes
 import images as img
-import craft
-import dungeon
+import macro_writer
+import pywinauto
 
 debug = False
-display = True
-threshold = 0.80
+display = False
+threshold = 0.8
 eyes.set_debug(debug)
 eyes.set_display(display)
 eyes.set_threshold(threshold)
-templates = img.templates(match_crescent=True)
-screenWidth, screenHeight = pyautogui.size()
 actions = 0
-# Set start_time to time.time() if you do not want to start crafting right away
 start_time = 0
 crystal_time = 0
 crystal_limit = 15 * 60
 
-try:
-    # Go to dungeon.py to get more information
-    # dungeon.mine()
-    # dungeon.toc()
-    while True:
-        did_match = False
-        source = img.screenshot()
-        for tname, timg in templates:
-            matching_points = eyes.match(tname, timg, source, threshold)
-            if matching_points:
-                # Expand bag for full inventory. Gear is hidden upon opening
-                if tname == 'ruby':
-                    # Click pouch to expand
-                    pouch = img.info('pouch')
-                    pouch_point = eyes.match(pouch[0], pouch[1],
-                                             source)
-                    if pouch_point: 
-                        img.click(
-                            pouch_point[0][0],
-                            pouch_point[0][1],
-                            duration=0.3)
-                        actions += 1
-                        did_match = True
-                    break
-                # Close occasional menu pop-ups
-                elif tname in img.singles:
-                    img.click(
-                        matching_points[0][0],
-                        matching_points[0][1],
-                        duration=0.3)
-                    actions += 1
-                    did_match = True
-                    break
-                # Always hold three crescents, for crafting
-                elif (time.time() - crystal_time) > crystal_limit:
-                    crystal_time = time.time()
-                    craft.crystals()
-                elif tname == 'crescent' and len(matching_points) < 5:
-                    pass
-                elif len(matching_points) >= 2:
-                    pyautogui.moveTo(
-                        matching_points[0][0],
-                        matching_points[0][1],
-                        duration=0.3)
-                    pyautogui.dragTo(
-                        matching_points[1][0],
-                        matching_points[1][1],
-                        duration=0.5)
-                    if debug:
-                        print('Dragging from {} to {}'.format(
-                            (matching_points[0][0], matching_points[0][1]),
-                            (matching_points[1][0], matching_points[1][1])))
-                    actions += 1
-                    did_match = True
-                    sleep(1)
-                    # break
-        if did_match:
-            sleep(0.5)
+app = pywinauto.application.Application().connect(best_match='BlueStacks')
+
+# def create_input_command(command="tap", *args):
+#     return ["adb", "shell", "input", "mouse", command, *(str(a) for a in args)]
+
+
+def combine_stones(stone1, stone2, offset=0):
+    # subprocess.run(create_input_command(
+    #     "swipe", stone1[0], offset + stone1[1], stone2[0], offset + stone2[1], randint(1000, 2000)))
+    
+    macro_writer.write_macro(
+        "swipe", stone1[0], offset + stone1[1], stone2[0], offset + stone2[1], 50)
+    
+def start_macro():
+    app.top_window().send_keystrokes("{VK_PAUSE}")
+
+
+def click(pos, offset=0):
+    # subprocess.run(create_input_command("tap", pos[0], offset + pos[1]))
+    return
+
+import ctypes, sys
+
+def is_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
+
+
+if is_admin():
+    screenshot_full, offset_full = img.screenshot()
+
+    match_points = eyes.match_name("safe_rgba", screenshot_full, threshold)
+    second_row_y = -1
+
+    if len(match_points) > 0:
+        second_row_y = match_points[0][1] - 60
+
+    while (True):
+        print("I am wake")
+        screenshot_full, offset_full = img.screenshot()
+        screenshot_half, offset_half = img.screenshot(second_row_y, 300)
+        for name in img.singles:
+            match_points = eyes.match_name(name, screenshot_full, threshold)
+            if len(match_points) > 0:
+                for pos in match_points:
+                    if pos[1] < second_row_y - 60:
+                        click(match_points[0])
+
+        matched_stone = False
+        for name in img.stones:
+            match_points = eyes.match_name(name, screenshot_half, threshold)
+            if len(match_points) >= 2:
+                while len(match_points) > 1:
+                    combine_stones(match_points[0], match_points[1], offset_half)
+                    match_points.pop(0)
+                    match_points.pop(0)
+                    matched_stone = True
+        
+        if (matched_stone):
+            sleep_amt = macro_writer.dump_objs()
+            start_macro()
+            sleep((sleep_amt / 1000) - 200)
         else:
-            if debug:
-                print('No match found')
-            pyautogui.moveTo(screenWidth/4, 0, duration=0.3)
-            pyautogui.moveTo(screenWidth/4, screenHeight/8, duration=8)
+            sleep(1)
 
-except KeyboardInterrupt:
-    pass
-
-e = time.time() - start_time
-elapsed_time = "{:.0f}:{:.0f}:{:.0f}".format(e/3600, (e%3600)/60, (e%60))
-print('Program finished after performing {} actions over {}'.format(actions, elapsed_time))
+else:
+    ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
