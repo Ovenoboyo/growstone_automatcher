@@ -78,7 +78,8 @@ if is_admin():
         if (matched_stone):
             sleep_amt = macro_writer.dump_objs()
             start_macro()
-            sleep((sleep_amt / 1000) - 200)
+            print(max(0.7, (sleep_amt - 200 / 1000)))
+            sleep(max(0.7, ((sleep_amt - 200) / 1000)))
         else:
             sleep(1)
 
